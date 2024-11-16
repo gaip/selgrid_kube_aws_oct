@@ -12,21 +12,15 @@ import java.net.URL;
 public class DriverManager {
 
     private static ThreadLocal<WebDriver> threadLocalDriver= new ThreadLocal<>();
-
-    public static WebDriver initDriver(){
-        String gridUrl=getGridUrl();
-        if(!(gridUrl==null || gridUrl.isEmpty())){
-            try {
-                threadLocalDriver.set(new RemoteWebDriver(new URL(gridUrl),getChromeOptions()));
-            } catch (MalformedURLException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        else {
-            threadLocalDriver.set(new ChromeDriver(getChromeOptions()));
-        }
-        threadLocalDriver.get().manage().window().maximize();
-        return threadLocalDriver.get();
+    public void initDriver() {
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("--headless");
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--remote-allow-origins=*");
+        WebDriver driver = new ChromeDriver(options);
+ 
     }
 
     public static ChromeOptions getChromeOptions(){

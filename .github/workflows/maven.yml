@@ -25,3 +25,10 @@ jobs:
           ./scripts/InstallChrome.sh
     - name: test with maven
       run: mvn clean test
+
+    - name: Report test results
+      uses: dorny/test-reporter@v1.9.1
+      with:
+        name: Maven Surefire
+        path: "**/surefire-reports/TEST-*.xml"
+        reporter: java-junit  

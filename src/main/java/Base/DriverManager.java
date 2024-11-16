@@ -20,7 +20,7 @@ public class DriverManager {
         options.addArguments("--disable-gpu");
         options.addArguments("--remote-allow-origins=*");
         WebDriver driver = new ChromeDriver(options);
- 
+        threadLocalDriver.set(driver);
     }
 
     public static ChromeOptions getChromeOptions(){
@@ -45,8 +45,11 @@ public class DriverManager {
     }
 
     public static void quitDriver(){
-        threadLocalDriver.get().quit();
-        threadLocalDriver.remove();
+        WebDriver driver = threadLocalDriver.get();
+        if (driver != null) {
+            driver.quit();
+            threadLocalDriver.remove();
+        }
     }
 
 }

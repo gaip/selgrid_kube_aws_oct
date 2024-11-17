@@ -14,10 +14,10 @@ public class SeleniumGridTest {
         options.addArguments("--no-sandbox");
         options.addArguments("--headless");
         
-        // Get the Selenium Grid URL from environment or use default Kubernetes service URL
+        // Get the Selenium Grid URL from environment or use localhost (port-forwarded)
         String gridHost = System.getenv("SELENIUM_GRID_HOST");
         if (gridHost == null || gridHost.isEmpty()) {
-            gridHost = "selenium-hub-service";
+            gridHost = "localhost";
         }
         String gridUrl = String.format("http://%s:4444/wd/hub", gridHost);
         

@@ -1,0 +1,64 @@
+name: AWS EKS Selenium Grid Tests
+
+on:
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      aws_region:
+        description: 'AWS Region'
+        required: true
+        default: 'us-east-1'
+
+jobs:
+  deploy-test-cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # Required for AWS credentials
+      contents: read    # Required for actions/checkout
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ github.event.inputs.aws_region }}
+
+    - name: Set up JDK 22
+      uses: actions/setup-java@v4
+      with:
+        java-version: '22'
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    - name: Install Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'latest'
+
+    - name: Deploy EKS Infrastructure
+      run: |
+        chmod +x ./scripts/deploy_eks_selenium_grid.sh
+        ./scripts/deploy_eks_selenium_grid.sh
+
+    - name: Run Selenium Tests
+      run: mvn test -Dtest=SeleniumGridTest
+
+    - name: Report test results
+      if: always()
+      uses: dorny/test-reporter@v1.9.1
+      with:
+        name: Selenium Grid Tests
+        path: "**/surefire-reports/TEST-*.xml"
+        reporter: java-junit
+
+    - name: Cleanup AWS Resources
+      if: always()
+      run: |
+        chmod +x ./scripts/destroy_eks_selenium_grid.sh
+        ./scripts/destroy_eks_selenium_grid.sh

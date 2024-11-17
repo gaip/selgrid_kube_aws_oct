@@ -1,41 +1,44 @@
+
 #!/bin/bash
 
-echo "Starting cleanup of Selenium Grid EKS deployment..."
+# Variables
+CLUSTER_NAME="selenium-grid-eks"
+NODEGROUP_NAME="selenium-grid-nodes"
+ROLE_NAME_CLUSTER="eksClusterRole"
+ROLE_NAME_NODEGROUP="eksNodeGroupRole"
+REGION="us-east-1"
 
-# Delete cluster
-echo "Deleting EKS cluster..."
-aws eks delete-cluster --name selenium-grid-eks
+# Delete Helm release
+helm uninstall selenium-grid
 
-# Wait for cluster deletion
-echo "Waiting for cluster deletion..."
-while aws eks describe-cluster --name selenium-grid-eks >/dev/null 2>&1; do
-    echo "Cluster still deleting..."
-    sleep 30
-done
-echo "Cluster deleted"
+# Delete Node Group
+aws eks delete-nodegroup --cluster-name $CLUSTER_NAME --nodegroup-name $NODEGROUP_NAME
+
+# Wait for node group to be deleted
+aws eks wait nodegroup-deleted --cluster-name $CLUSTER_NAME --nodegroup-name $NODEGROUP_NAME
+
+# Delete EKS Cluster
+aws eks delete-cluster --name $CLUSTER_NAME
+
+# Wait for cluster to be deleted
+aws eks wait cluster-deleted --name $CLUSTER_NAME
 
 # Delete IAM roles and policies
-echo "Cleaning up IAM roles and policies..."
-aws iam detach-role-policy --role-name eksClusterRole --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
-aws iam delete-role --role-name eksClusterRole
+aws iam detach-role-policy --role-name $ROLE_NAME_CLUSTER --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+aws iam delete-role --role-name $ROLE_NAME_CLUSTER
 
-aws iam detach-role-policy --role-name eksNodeGroupRole --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
-aws iam detach-role-policy --role-name eksNodeGroupRole --policy-arn arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
-aws iam detach-role-policy --role-name eksNodeGroupRole --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
-aws iam delete-role --role-name eksNodeGroupRole
+aws iam detach-role-policy --role-name $ROLE_NAME_NODEGROUP --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+aws iam detach-role-policy --role-name $ROLE_NAME_NODEGROUP --policy-arn arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+aws iam detach-role-policy --role-name $ROLE_NAME_NODEGROUP --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+aws iam delete-role --role-name $ROLE_NAME_NODEGROUP
 
-# Clean up VPC resources
-echo "Cleaning up VPC resources..."
-# Detach and delete Internet Gateway
-IGW_ID=$(aws ec2 describe-internet-gateways --filters "Name=attachment.vpc-id,Values=vpc-000e3f8524acfb89d" --query 'InternetGateways[0].InternetGatewayId' --output text)
-if [ ! -z "$IGW_ID" ]; then
-    aws ec2 detach-internet-gateway --internet-gateway-id $IGW_ID --vpc-id vpc-000e3f8524acfb89d
-    aws ec2 delete-internet-gateway --internet-gateway-id $IGW_ID
-fi
+# Delete VPC resources
+VPC_ID=$(aws ec2 describe-vpcs --filters "Name=cidr-block,Values=10.0.0.0/16" --query "Vpcs[0].VpcId" --output text)
+SUBNET_ID_1=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" "Name=cidr-block,Values=10.0.1.0/24" --query "Subnets[0].SubnetId" --output text)
+SUBNET_ID_2=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" "Name=cidr-block,Values=10.0.2.0/24" --query "Subnets[0].SubnetId" --output text)
 
-# Delete subnets and VPC
-aws ec2 delete-subnet --subnet-id subnet-08ada63b767485389
-aws ec2 delete-subnet --subnet-id subnet-0b3fba41acdb0b8ed
-aws ec2 delete-vpc --vpc-id vpc-000e3f8524acfb89d
+aws ec2 delete-subnet --subnet-id $SUBNET_ID_1
+aws ec2 delete-subnet --subnet-id $SUBNET_ID_2
+aws ec2 delete-vpc --vpc-id $VPC_ID
 
 echo "All resources have been destroyed."

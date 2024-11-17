@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-selenium-node-chrome
+spec:
+  replicas: {{ .Values.chromeNode.replicas }}
+  selector:
+    matchLabels:
+      app: selenium-node-chrome
+  template:
+    metadata:
+      labels:
+        app: selenium-node-chrome
+    spec:
+      containers:
+        - name: selenium-node-chrome
+          image: "{{ .Values.chromeNode.image.repository }}:{{ .Values.chromeNode.image.tag }}"
+          env:
+            - name: SE_EVENT_BUS_HOST
+              value: {{ .Release.Name }}-selenium-hub
+            - name: SE_EVENT_BUS_PUBLISH_PORT
+              value: "4442"
+            - name: SE_EVENT_BUS_SUBSCRIBE_PORT
+              value: "4443"
+            - name: SE_NODE_MAX_SESSIONS
+              value: "{{ .Values.chromeNode.maxSessions }}"
